@@ -1,0 +1,14 @@
+Analysis & Synthesis Status : Successful - Mon Jan 04 10:25:10 2021
+Quartus II 64-Bit Version : 15.0.0 Build 145 04/22/2015 SJ Full Version
+Revision Name : SDRAM_test
+Top-level Entity Name : SDRAM_test
+Family : Cyclone IV E
+Total logic elements : 3,358
+    Total combinational functions : 2,485
+    Dedicated logic registers : 2,002
+Total registers : 2002
+Total pins : 421
+Total virtual pins : 0
+Total memory bits : 61,392
+Embedded Multiplier 9-bit elements : 4
+Total PLLs : 1

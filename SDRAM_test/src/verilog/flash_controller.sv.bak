@@ -1,0 +1,151 @@
+module FLASH_controller (
+    input         i_rst_n,
+    input         i_clk,
+    input 	[3:0] i_mode,
+    input   [7:0] data,
+	 
+    output        o_valid,
+    output  [22:1] o_addr,
+    output  [7:0] o_R,
+    output  [7:0] o_G,
+    output  [7:0] o_B,
+    
+
+    output        ce_n,
+    output        oe_n,
+    output        we_n,
+    output        reset_n,
+    output        wp
+
+);
+
+logic [7:0] R_r, R_w;
+logic [7:0] G_r, G_w;
+logic [7:0] B_r, B_w;
+logic [11:0] col_r, col_w;
+logic [11:0] row_r, row_w;
+logic [1:0] wait_cycle_r, wait_cycle_w;
+logic [1:0] state_r, state_w;
+logic [3:0] mode_r, mode_w;
+logic [3:0] display_mode;
+logic valid_r, valid_w;
+
+localparam S_IDLE = 0;
+localparam S_RED = 1;
+localparam S_GREEN = 2;
+localparam S_BLUE = 3;
+localparam COL_START = 80*4;
+localparam COL_END = 240*4;
+localparam COL_SMALLBLOCK = (240-80)*4;
+localparam ROW_START = 160;
+localparam ROW_END = 320;
+localparam MAX_ROW = 480;
+localparam MAX_COL = 2560;
+localparam MAX_ADDR = 480*2560;
+localparam MODE_OFFSET = (240-80)*4*(320 - 160);
+
+
+
+assign ce_n = 0;
+assign oe_n = 0;
+assign we_n = 1;
+assign reset_n = 1;
+assign wp = 0;
+assign o_B = B_r;
+assign o_G = G_r;
+assign o_R = R_r;
+
+assign o_valid = valid_r;
+assign display_mode = (row_r >= ROW_START && row_r < ROW_END && col_r >= COL_START && col_r < COL_END) ? mode_r : 0;
+
+assign o_addr = (display_mode == 0)?col_r + row_r*MAX_COL:MAX_ADDR + MODE_OFFSET*(display_mode - 1)+ (col_r - COL_START)+(row_r - ROW_START)*COL_SMALLBLOCK;
+//RRR GGG BB
+
+
+always_comb begin
+    R_w = R_r;
+    G_w = G_r;
+    B_w =  B_r;
+    col_w = col_r;
+	 row_w = row_r;
+    wait_cycle_w = wait_cycle_r;
+    valid_w = valid_r;
+    state_w = state_r;
+	 mode_w = mode_r;
+    case(state_r)
+        S_IDLE:begin            
+            valid_w = 0;
+				if(col_r == MAX_COL && row_r == MAX_ROW - 1) begin
+					row_w = 0;
+					col_w = 0;
+					mode_w = i_mode;
+				end
+				else if (col_r == MAX_COL) begin
+					row_w = row_r+1;
+					col_w = 0;
+					mode_w = mode_r;
+				end
+				else begin
+					row_w = row_r;
+					col_w = col_r;
+					mode_w = mode_r;
+				end
+            if(wait_cycle_r == 0) begin
+                state_w = S_RED;
+            end
+            else begin
+                state_w = S_IDLE;
+                wait_cycle_w = wait_cycle_r - 1;
+            end
+        end
+        S_RED:begin
+            col_w = col_r+1;
+            state_w = S_GREEN;
+            R_w = data;
+        end            
+        S_GREEN:begin
+            col_w = col_r+1;
+            state_w = S_BLUE;
+            G_w = data;
+        end
+        S_BLUE:begin
+				col_w = col_r+2;
+            state_w = S_IDLE;
+            valid_w = 1;
+            B_w = data;
+            if(col_r[2:0] == 6)begin
+                wait_cycle_w = 3;
+            end
+            else begin
+                wait_cycle_w = 0;
+            end                
+        end       
+    endcase
+end
+
+always_ff @(posedge i_clk or negedge i_rst_n) begin
+    if(!i_rst_n) begin
+        R_r     <= 0;
+        G_r     <= 0;
+        B_r     <= 0;
+        col_r	 <= 0;
+		  row_r	 <= 0;
+        wait_cycle_r    <= 0;
+        valid_r         <= 0;
+        state_r         <= S_IDLE;
+		  mode_r 			<= 0;
+    end
+    else begin
+        R_r     <= R_w;
+        G_r     <= G_w;
+        B_r     <= B_w;
+        col_r	 <= col_w;
+		  row_r	 <= row_w;
+        wait_cycle_r    <= wait_cycle_w;
+        valid_r         <= valid_w;
+        state_r         <= state_w;
+		  mode_r				<= mode_w;
+    end
+end
+
+endmodule
